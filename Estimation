@@ -44,6 +44,7 @@ class Player:
         self.void_suits = set()
         self.trick_history = []
         self.with_risk = False
+        self.risky_bid = False
 
     def sort_hand(self):
         self.hand.sort(key=lambda c: (SUIT_STRENGTH[c.suit], VALUE_STRENGTH[c.value]))
@@ -293,6 +294,8 @@ class EstimationGame:
                     bid_input = input(f"{last_player.name}, enter your bid (total should not be 13): ")
                     bid = int(bid_input)
                     if 0 <= bid <= 13 and (total + bid) != 13:
+                        if (total + bid) > 14 or (total + bid) < 12:
+                            last_player.risky_bid = True
                         break
                     else:
                         print("Invalid bid. The total number of tricks cannot be 13.")
@@ -301,7 +304,9 @@ class EstimationGame:
         else:
             bid = player.estimate_bid(self.players[bid_winner_idx].choose_trump(), self.players[bid_winner_idx].bid)
             if (total + bid) == 13:
-                bid = bid - 1 if bid > 0 else bid + 1  # Adjust bid to avoid 13
+                bid = bid - 1 if bid > 0 else bid + 1
+            if (total + bid) > 14 or (total + bid) < 12:
+                last_player.risky_bid = True
         last_player.final_bid = bid
         self.players[bid_winner_idx].final_bid = self.players[bid_winner_idx].bid
 
@@ -357,8 +362,12 @@ class EstimationGame:
                 player.score += 10 + player.final_bid * 2
                 if player.with_risk:
                     player.score += 10
+                if player.risky_bid:
+                    player.score += 20
             else:
                 player.score -= abs(player.tricks_taken - player.final_bid) * 2
+                if player.risky_bid:
+                    player.score -= 20
 
     def play(self):
         for round_no in range(1, self.total_rounds + 1):
