@@ -43,6 +43,7 @@ class Player:
         self.score = 0
         self.void_suits = set()
         self.trick_history = []
+        self.with_risk = False
 
     def sort_hand(self):
         self.hand.sort(key=lambda c: (SUIT_STRENGTH[c.suit], VALUE_STRENGTH[c.value]))
@@ -260,6 +261,7 @@ class EstimationGame:
 
     def get_final_bids(self, bid_winner_idx):
         total = 0
+        bid_winner_bid = self.players[bid_winner_idx].bid
         for i in range(4):
             if i == bid_winner_idx:
                 continue
@@ -267,7 +269,11 @@ class EstimationGame:
             if player.is_human:
                 while True:
                     try:
-                        bid_input = input(f"{player.name}, enter your bid: ")
+                        bid_input = input(f"{player.name}, enter your bid (or 'risk' to match bid winner): ")
+                        if bid_input.lower() == 'risk':
+                            bid = bid_winner_bid
+                            player.with_risk = True
+                            break
                         bid = int(bid_input)
                         if bid >= 0:
                             break
@@ -349,6 +355,8 @@ class EstimationGame:
         for player in self.players:
             if player.tricks_taken == player.final_bid:
                 player.score += 10 + player.final_bid * 2
+                if player.with_risk:
+                    player.score += 10
             else:
                 player.score -= abs(player.tricks_taken - player.final_bid) * 2
 
