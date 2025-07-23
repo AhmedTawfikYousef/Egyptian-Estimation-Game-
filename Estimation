@@ -131,18 +131,23 @@ class Player:
 
     def choose_card(self, lead_suit, trump, trick_number=1, opponents=None, trick=[], trick_history=[]):
         if self.is_human:
-            # Human player logic remains the same
-            print("\nYour current hand:")
-            for idx, card in enumerate(self.hand):
-                print(f"[{idx}] {card}", end='  ')
-            print()
-            valid_indices = [i for i, c in enumerate(self.hand) if lead_suit is None or c.suit == lead_suit]
-            if not valid_indices:
-                valid_indices = list(range(len(self.hand)))
-            while True:
-                choice = input(f"Choose a card to play (index {valid_indices}): ").strip()
-                if choice.isdigit() and int(choice) in valid_indices:
-                    return self.hand.pop(int(choice))
+            valid_cards = [c for c in self.hand if lead_suit is None or c.suit == lead_suit]
+            if not valid_cards:
+                valid_cards = self.hand
+
+            if len(valid_cards) == 1:
+                return self.hand.pop(self.hand.index(valid_cards[0]))
+            else:
+                # Human player logic remains the same
+                print("\nYour current hand:")
+                for idx, card in enumerate(self.hand):
+                    print(f"[{idx}] {card}", end='  ')
+                print()
+                valid_indices = [self.hand.index(c) for c in valid_cards]
+                while True:
+                    choice = input(f"Choose a card to play (index {valid_indices}): ").strip()
+                    if choice.isdigit() and int(choice) in valid_indices:
+                        return self.hand.pop(int(choice))
         else:
             # Bot player logic
             valid_cards = [c for c in self.hand if lead_suit is None or c.suit == lead_suit]
