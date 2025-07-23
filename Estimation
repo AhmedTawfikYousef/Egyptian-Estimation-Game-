@@ -42,6 +42,7 @@ class Player:
         self.final_bid = 0
         self.score = 0
         self.void_suits = set()
+        self.trick_history = []
 
     def sort_hand(self):
         self.hand.sort(key=lambda c: (SUIT_STRENGTH[c.suit], VALUE_STRENGTH[c.value]))
@@ -128,7 +129,7 @@ class Player:
                 suit_strength[card.suit] += VALUE_STRENGTH[card.value]
         return max(suit_strength, key=suit_strength.get)
 
-    def choose_card(self, lead_suit, trump, trick_number=1, opponents=None, trick=[]):
+    def choose_card(self, lead_suit, trump, trick_number=1, opponents=None, trick=[], trick_history=[]):
         if self.is_human:
             # Human player logic remains the same
             print("\nYour current hand:")
@@ -173,6 +174,13 @@ class Player:
                 # If not trying to win, prefer lower cards
                 if context == 'lose':
                     score = -score
+
+                # Consider played cards
+                for t in trick_history:
+                    for _, c in t[0]:
+                        if c.suit == card.suit and c.value == card.value:
+                            score -= 1000 # This card has already been played
+
                 return score
 
             # Decide whether to try to win or lose the trick
@@ -305,7 +313,7 @@ class EstimationGame:
             for i in range(4):
                 idx = (leader_idx + i) % 4
                 player = self.players[idx]
-                card = player.choose_card(lead_card.suit if lead_card else None, self.trump, trick_no + 1, opponents, trick)
+                card = player.choose_card(lead_card.suit if lead_card else None, self.trump, trick_no + 1, opponents, trick, self.trick_history)
                 trick.append((idx, card))
                 print(f"{player.name} plays {card}")
                 if i == 0:
