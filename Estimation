@@ -258,18 +258,18 @@ class EstimationGame:
         if last_player.is_human:
             while True:
                 try:
-                    bid_input = input(f"{last_player.name}, enter your bid (≠ {remaining}): ")
+                    bid_input = input(f"{last_player.name}, enter your bid (total should not be 13): ")
                     bid = int(bid_input)
-                    if 0 <= bid <= 13 and bid != remaining:
+                    if 0 <= bid <= 13 and (total + bid) != 13:
                         break
                     else:
-                        print("Invalid bid. Please enter a number between 0 and 13, and not equal to the remainder.")
+                        print("Invalid bid. The total number of tricks cannot be 13.")
                 except ValueError:
                     print("Invalid input. Please enter a number.")
         else:
-            bid = remaining - 1 if remaining > 0 else 0
-            if bid < 0:
-                bid = 0
+            bid = player.estimate_bid(self.players[bid_winner_idx].choose_trump(), self.players[bid_winner_idx].bid)
+            if (total + bid) == 13:
+                bid = bid - 1 if bid > 0 else bid + 1  # Adjust bid to avoid 13
         last_player.final_bid = bid
         self.players[bid_winner_idx].final_bid = self.players[bid_winner_idx].bid
 
