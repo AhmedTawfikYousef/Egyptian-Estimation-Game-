@@ -9,321 +9,338 @@ VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 VALUE_STRENGTH = {val: idx for idx, val in enumerate(VALUES)}
 
 class Card:
-def init(self, suit: str, value: str):
-self.suit = suit
-self.value = value
+    def __init__(self, suit: str, value: str):
+        self.suit = suit
+        self.value = value
 
-def __str__(self):  
-    color = '\033[91m' if self.suit in ['\u2665', '\u2666'] else '\033[90m'  
-    return f"{color}{self.value}{self.suit}\033[0m"  
+    def __str__(self):
+        color = '\033[91m' if self.suit in ['\u2665', '\u2666'] else '\033[90m'
+        return f"{color}{self.value}{self.suit}\033[0m"
 
-def __lt__(self, other):  
-    return VALUE_STRENGTH[self.value] < VALUE_STRENGTH[other.value]
+    def __lt__(self, other):
+        return VALUE_STRENGTH[self.value] < VALUE_STRENGTH[other.value]
 
 class Deck:
-def init(self):
-self.cards = [Card(s, v) for s in SUITS for v in VALUES]
+    def __init__(self):
+        self.cards = [Card(s, v) for s in SUITS for v in VALUES]
 
-def shuffle(self):  
-    random.shuffle(self.cards)  
+    def shuffle(self):
+        random.shuffle(self.cards)
 
-def deal(self):  
-    return [self.cards[i::4] for i in range(4)]
+    def deal(self):
+        return [self.cards[i::4] for i in range(4)]
 
 class Player:
-memory = []
+    memory = []
 
-def __init__(self, name, is_human=False):  
-    self.name = name  
-    self.is_human = is_human  
-    self.hand = []  
-    self.bid = 0  
-    self.tricks_taken = 0  
-    self.final_bid = 0  
-    self.score = 0  
-    self.void_suits = set()  
+    def __init__(self, name, is_human=False):
+        self.name = name
+        self.is_human = is_human
+        self.hand = []
+        self.bid = 0
+        self.tricks_taken = 0
+        self.final_bid = 0
+        self.score = 0
+        self.void_suits = set()
 
-def sort_hand(self):  
-    self.hand.sort(key=lambda c: (SUIT_STRENGTH[c.suit], VALUE_STRENGTH[c.value]))  
+    def sort_hand(self):
+        self.hand.sort(key=lambda c: (SUIT_STRENGTH[c.suit], VALUE_STRENGTH[c.value]))
 
-def detect_voids(self):  
-    suits_present = {card.suit for card in self.hand}  
-    self.void_suits = {s for s in SUITS if s not in suits_present}  
-    if self.void_suits:  
-        print(f"{self.name} declares to be void in a suit.")  
+    def detect_voids(self):
+        suits_present = {card.suit for card in self.hand}
+        self.void_suits = {s for s in SUITS if s not in suits_present}
+        if self.void_suits:
+            print(f"{self.name} declares to be void in a suit.")
 
-def estimate_bid(self, trump=None, bid_pressure=0):  
-    # Adjust strategy if total bid under or over 13 could be passed here in bid_pressure  
-    suit_counts = {suit: [] for suit in SUITS}  
-    high_card_points = 0  
-    estimated_tricks = 0  
+    def estimate_bid(self, trump=None, bid_pressure=0):
+        # Adjust strategy if total bid under or over 13 could be passed here in bid_pressure
+        suit_counts = {suit: [] for suit in SUITS}
+        high_card_points = 0
+        estimated_tricks = 0
 
-    for card in self.hand:  
-        suit_counts[card.suit].append(card)  
-        if card.value == 'A':  
-            high_card_points += 4  
-        elif card.value == 'K':  
-            high_card_points += 3  
-        elif card.value == 'Q':  
-            high_card_points += 2  
-        elif card.value == 'J':  
-            high_card_points += 1  
+        for card in self.hand:
+            suit_counts[card.suit].append(card)
+            if card.value == 'A':
+                high_card_points += 4
+            elif card.value == 'K':
+                high_card_points += 3
+            elif card.value == 'Q':
+                high_card_points += 2
+            elif card.value == 'J':
+                high_card_points += 1
 
-    for suit, cards in suit_counts.items():  
-        cards.sort(key=lambda c: VALUE_STRENGTH[c.value], reverse=True)  
-        for i, card in enumerate(cards):  
-            if i == 0 and card.value in ['A', 'K']:  
-                estimated_tricks += 1  
-            elif trump and card.suit == trump and i < 2:  
-                estimated_tricks += 0.5  
+        for suit, cards in suit_counts.items():
+            cards.sort(key=lambda c: VALUE_STRENGTH[c.value], reverse=True)
+            for i, card in enumerate(cards):
+                if i == 0 and card.value in ['A', 'K']:
+                    estimated_tricks += 1
+                elif trump and card.suit == trump and i < 2:
+                    estimated_tricks += 0.5
 
-    long_suits_bonus = sum(1 for s in suit_counts if len(suit_counts[s]) >= 5)  
-    void_penalty = len(self.void_suits) * 1.5  
-    weak_suits_penalty = sum(1 for cards in suit_counts.values() if len(cards) <= 2)  
+        long_suits_bonus = sum(1 for s in suit_counts if len(suit_counts[s]) >= 5)
+        void_penalty = len(self.void_suits) * 1.5
+        weak_suits_penalty = sum(1 for cards in suit_counts.values() if len(cards) <= 2)
 
-    estimate = estimated_tricks + (high_card_points // 3) + long_suits_bonus - void_penalty - weak_suits_penalty * 0.5  
+        estimate = estimated_tricks + (high_card_points // 3) + long_suits_bonus - void_penalty - weak_suits_penalty * 0.5
 
-    if trump:  
-        trump_count = len(suit_counts[trump])  
-        estimate += 0.3 * trump_count  
+        if trump:
+            trump_count = len(suit_counts[trump])
+            estimate += 0.3 * trump_count
 
-    if bid_pressure >= 7:  
-        estimate -= 1  
+        if bid_pressure >= 7:
+            estimate -= 1
 
-    estimate = max(0, round(estimate))  
-    return estimate if estimate >= 4 else 0  
+        estimate = max(0, round(estimate))
+        return estimate if estimate >= 4 else 0
 
-def make_bid(self, current_bids, position, dealer_pos):  
-    if self.is_human:  
-        while True:  
-            inp = input(f"{self.name} (bid/pass)? [P/4-13]: ").strip().upper()  
-            if inp == "P":  
-                return 0  
-            if inp.isdigit():  
-                bid = int(inp)  
-                if 4 <= bid <= 13:  
-                    return bid  
-    else:  
-        return self.estimate_bid()  
+    def make_bid(self, current_bids, position, dealer_pos):
+        if self.is_human:
+            while True:
+                inp = input(f"{self.name} (bid/pass)? [P/4-13]: ").strip().upper()
+                if inp == "P":
+                    return 0
+                if inp.isdigit():
+                    bid = int(inp)
+                    if 4 <= bid <= 13:
+                        return bid
+        else:
+            return self.estimate_bid()
 
-def choose_trump(self):  
-    suit_strength = {s: 0 for s in SUITS}  
-    for card in self.hand:  
-        if card.value in ['A', 'K', 'Q']:  
-            suit_strength[card.suit] += VALUE_STRENGTH[card.value]  
-    return max(suit_strength, key=suit_strength.get)  
+    def choose_trump(self):
+        suit_strength = {s: 0 for s in SUITS}
+        for card in self.hand:
+            if card.value in ['A', 'K', 'Q']:
+                suit_strength[card.suit] += VALUE_STRENGTH[card.value]
+        return max(suit_strength, key=suit_strength.get)
 
-def choose_card(self, lead_suit, trump, trick_number=1, opponents=None):  
-    known_voids = {suit: set() for suit in SUITS}  
-    for name, card in Player.memory:  
-        known_voids[card.suit].add(name)  
+    def choose_card(self, lead_suit, trump, trick_number=1, opponents=None):
+        known_voids = {suit: set() for suit in SUITS}
+        for name, card in Player.memory:
+            known_voids[card.suit].add(name)
 
-    if self.is_human:  
-        print("\nYour current hand:")  
-        for idx, card in enumerate(self.hand):  
-            print(f"[{idx}] {card}", end='  ')  
-        print()  
-        valid_indices = [i for i, c in enumerate(self.hand) if lead_suit is None or c.suit == lead_suit]  
-        if not valid_indices:  
-            valid_indices = list(range(len(self.hand)))  
-        while True:  
-            choice = input(f"Choose a card to play (index {valid_indices}): ").strip()  
-            if choice.isdigit():  
-                choice = int(choice)  
-                if choice in valid_indices:  
-                    return self.hand.pop(choice)  
-    else:  
-        needed = self.final_bid - self.tricks_taken  
-        valid_cards = [c for c in self.hand if c.suit == lead_suit]  
-        if not valid_cards:  
-            valid_cards = self.hand  
+        if self.is_human:
+            print("\nYour current hand:")
+            for idx, card in enumerate(self.hand):
+                print(f"[{idx}] {card}", end='  ')
+            print()
+            valid_indices = [i for i, c in enumerate(self.hand) if lead_suit is None or c.suit == lead_suit]
+            if not valid_indices:
+                valid_indices = list(range(len(self.hand)))
+            while True:
+                choice = input(f"Choose a card to play (index {valid_indices}): ").strip()
+                if choice.isdigit():
+                    choice = int(choice)
+                    if choice in valid_indices:
+                        return self.hand.pop(choice)
+        else:
+            needed = self.final_bid - self.tricks_taken
+            valid_cards = [c for c in self.hand if c.suit == lead_suit]
+            if not valid_cards:
+                valid_cards = self.hand
 
-        def card_score(card):  
-            base = VALUE_STRENGTH[card.value]  
-            if trump and card.suit == trump:  
-                base += 100  
-            elif lead_suit and card.suit == lead_suit:  
-                base += 50  
-            return base  
+            def card_score(card):
+                base = VALUE_STRENGTH[card.value]
+                if trump and card.suit == trump:
+                    base += 100
+                elif lead_suit and card.suit == lead_suit:
+                    base += 50
+                return base
 
-        if needed > 0:  
-            safe_cards = []  
-            for c in valid_cards:  
-                risky = any(self.name != p and lead_suit in known_voids and p in known_voids[lead_suit] for p, _ in Player.memory)  
-                if not risky:  
-                    safe_cards.append(c)  
-            best = max(safe_cards, key=card_score) if safe_cards else max(valid_cards, key=card_score)  
-        else:  
-            best = min(valid_cards, key=card_score)  
+            if needed > 0:
+                safe_cards = []
+                for c in valid_cards:
+                    risky = any(self.name != p and lead_suit in known_voids and p in known_voids[lead_suit] for p, _ in Player.memory)
+                    if not risky:
+                        safe_cards.append(c)
+                best = max(safe_cards, key=card_score) if safe_cards else max(valid_cards, key=card_score)
+            else:
+                best = min(valid_cards, key=card_score)
 
-        self.hand.remove(best)  
-        Player.memory.append((self.name, best))  
+            self.hand.remove(best)
+            Player.memory.append((self.name, best))
 
-    # Track suits opponents are void in  
-    for suit in SUITS:  
-        if all(c.suit != suit for _, c in Player.memory if c.suit):  
-            pass  # Can be used to lead suit to force trump  
+        # Track suits opponents are void in
+        for suit in SUITS:
+            if all(c.suit != suit for _, c in Player.memory if c.suit):
+                pass  # Can be used to lead suit to force trump
 
-    return best
+        return best
 
 class EstimationGame:
-def init(self):
-self.players = [Player("You", is_human=True)] + [Player(f"Bot{i+1}") for i in range(3)]
-self.dealer_idx = 0
-self.trump = None
-self.trick_history = []
-self.total_rounds = int(input("Enter number of rounds to play: "))
+    def __init__(self):
+        self.players = [Player("You", is_human=True)] + [Player(f"Bot{i+1}") for i in range(3)]
+        self.dealer_idx = 0
+        self.trump = None
+        self.trick_history = []
+        self.total_rounds = int(input("Enter number of rounds to play: "))
 
-def rotate_players(self):  
-    self.players = self.players[1:] + [self.players[0]]  
+    def rotate_players(self):
+        self.players = self.players[1:] + [self.players[0]]
 
-def run_bidding(self):  
-    print("\n--- Bidding Phase ---")  
-    current_bids = [0] * 4  
-    bid_winner = None  
-    max_bid = 0  
-    for i in range(1, 5):  
-        idx = (self.dealer_idx + i) % 4  
-        player = self.players[idx]  
-        bid = player.make_bid(current_bids, idx, self.dealer_idx)  
-        if bid >= 4 and bid > max_bid:  
-            max_bid = bid  
-            bid_winner = idx  
-        current_bids[idx] = bid  
-        print(f"{player.name} bids {'Pass' if bid == 0 else bid}")  
-    return bid_winner, max_bid  
+    def run_bidding(self):
+        print("\n--- Bidding Phase ---")
+        current_bids = [0] * 4
+        bid_winner = None
+        max_bid = 0
+        for i in range(1, 5):
+            idx = (self.dealer_idx + i) % 4
+            player = self.players[idx]
+            bid = player.make_bid(current_bids, idx, self.dealer_idx)
+            if bid >= 4 and bid > max_bid:
+                max_bid = bid
+                bid_winner = idx
+            current_bids[idx] = bid
+            print(f"{player.name} bids {'Pass' if bid == 0 else bid}")
+        return bid_winner, max_bid
 
-def get_final_bids(self, bid_winner_idx):  
-    total = 0  
-    for i in range(4):  
-        if i == bid_winner_idx:  
-            continue  
-        player = self.players[i]  
-        bid = player.estimate_bid(self.players[bid_winner_idx].choose_trump(), self.players[bid_winner_idx].bid) if not player.is_human else int(input(f"{player.name}, enter your bid: "))  
-        player.final_bid = bid  
-        total += bid  
-    remaining = 13 - total  
-    last_player = self.players[(bid_winner_idx + 1) % 4]  
-    if last_player.is_human:  
-        while True:  
-            try:  
-                bid = int(input(f"{last_player.name}, enter your bid (≠ {remaining}): "))  
-                if 0 <= bid <= 13 and bid != remaining:  
-                    break  
-            except:  
-                pass  
-    else:  
-        bid = remaining - 1 if remaining < 13 else remaining - 2  
-    last_player.final_bid = bid  
-    self.players[bid_winner_idx].final_bid = self.players[bid_winner_idx].bid  
+    def get_final_bids(self, bid_winner_idx):
+        total = 0
+        for i in range(4):
+            if i == bid_winner_idx:
+                continue
+            player = self.players[i]
+            if player.is_human:
+                while True:
+                    try:
+                        bid_input = input(f"{player.name}, enter your bid: ")
+                        bid = int(bid_input)
+                        if bid >= 0:
+                            break
+                        else:
+                            print("Invalid bid. Please enter a non-negative number.")
+                    except ValueError:
+                        print("Invalid input. Please enter a number.")
+            else:
+                bid = player.estimate_bid(self.players[bid_winner_idx].choose_trump(), self.players[bid_winner_idx].bid)
+            player.final_bid = bid
+            total += bid
+        remaining = 13 - total
+        last_player = self.players[(bid_winner_idx + 1) % 4]
+        if last_player.is_human:
+            while True:
+                try:
+                    bid_input = input(f"{last_player.name}, enter your bid (≠ {remaining}): ")
+                    bid = int(bid_input)
+                    if 0 <= bid <= 13 and bid != remaining:
+                        break
+                    else:
+                        print("Invalid bid. Please enter a number between 0 and 13, and not equal to the remainder.")
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+        else:
+            bid = remaining - 1 if remaining > 0 else 0
+            if bid < 0:
+                bid = 0
+        last_player.final_bid = bid
+        self.players[bid_winner_idx].final_bid = self.players[bid_winner_idx].bid
 
-def collect_tricks(self, bid_winner_idx):  
-    opponents = {p.name: p.final_bid for p in self.players if not p.is_human}  
-    print("--- Round Setup ---")  
-    print("Final bids:")  
-    total_bid = 0  
-    for p in self.players:  
-        print(f"{p.name}: Bid = {p.final_bid}")  
-        total_bid += p.final_bid  
-    print(f"Total tricks bid: {total_bid} (", end='')  
-    if total_bid == 13:  
-        print("Exactly 13")  
-    elif total_bid < 13:  
-        print(f"Under by {13 - total_bid}")  
-    else:  
-        print(f"Over by {total_bid - 13}")  
-    print(f"Trump suit: {self.trump if self.trump else 'No Trump'}")  
-    print("\n--- Round Starts ---")  
-    leader_idx = bid_winner_idx if bid_winner_idx is not None else (self.dealer_idx + 1) % 4  
-    Player.memory.clear()  
-    for trick_no in range(13):  
-        print(f"\nTrick {trick_no + 1}")  
-        trick = []  
-        lead_card = None  
-        for i in range(4):  
-            idx = (leader_idx + i) % 4  
-            player = self.players[idx]  
-            card = player.choose_card(lead_card.suit if lead_card else None, self.trump, trick_no + 1, opponents)  
-            trick.append((idx, card))  
-            print(f"{player.name} plays {card}")  
-            if i == 0:  
-                lead_card = card  
-            time.sleep(1)  
-        winner = self.evaluate_trick(trick, lead_card.suit)  
-        self.players[winner].tricks_taken += 1  
-        self.trick_history.append((trick, winner, leader_idx))  
-        print(f"Trick winner: {self.players[winner].name}")  
-        leader_idx = winner  
-        self.show_status()  
+    def collect_tricks(self, bid_winner_idx):
+        opponents = {p.name: p.final_bid for p in self.players if not p.is_human}
+        print("--- Round Setup ---")
+        print("Final bids:")
+        total_bid = 0
+        for p in self.players:
+            print(f"{p.name}: Bid = {p.final_bid}")
+            total_bid += p.final_bid
+        print(f"Total tricks bid: {total_bid} (", end='')
+        if total_bid == 13:
+            print("Exactly 13")
+        elif total_bid < 13:
+            print(f"Under by {13 - total_bid}")
+        else:
+            print(f"Over by {total_bid - 13}")
+        print(f"Trump suit: {self.trump if self.trump else 'No Trump'}")
+        print("\n--- Round Starts ---")
+        leader_idx = bid_winner_idx if bid_winner_idx is not None else (self.dealer_idx + 1) % 4
+        Player.memory.clear()
+        for trick_no in range(13):
+            print(f"\nTrick {trick_no + 1}")
+            trick = []
+            lead_card = None
+            for i in range(4):
+                idx = (leader_idx + i) % 4
+                player = self.players[idx]
+                card = player.choose_card(lead_card.suit if lead_card else None, self.trump, trick_no + 1, opponents)
+                trick.append((idx, card))
+                print(f"{player.name} plays {card}")
+                if i == 0:
+                    lead_card = card
+                time.sleep(1)
+            winner = self.evaluate_trick(trick, lead_card.suit)
+            self.players[winner].tricks_taken += 1
+            self.trick_history.append((trick, winner, leader_idx))
+            print(f"Trick winner:. {self.players[winner].name}")
+            leader_idx = winner
+            self.show_status()
 
-def show_status(self):  
-    print("\n--- Status ---")  
-    for p in self.players:  
-        print(f"{p.name}: Tricks taken = {p.tricks_taken}, Bid = {p.final_bid}, Score = {p.score}")  
+    def show_status(self):
+        print("\n--- Status ---")
+        for p in self.players:
+            print(f"{p.name}: Tricks taken = {p.tricks_taken}, Bid = {p.final_bid}, Score = {p.score}")
 
-def evaluate_trick(self, trick, lead_suit):  
-    best = None  
-    winning_player = None  
-    for idx, card in trick:  
-        if not best or self.compare_cards(card, best, lead_suit):  
-            best = card  
-            winning_player = idx  
-    return winning_player  
+    def evaluate_trick(self, trick, lead_suit):
+        best = None
+        winning_player = None
+        for idx, card in trick:
+            if not best or self.compare_cards(card, best, lead_suit):
+                best = card
+                winning_player = idx
+        return winning_player
 
-def compare_cards(self, card1, card2, lead_suit):  
-    def get_rank(c):  
-        if self.trump and c.suit == self.trump:  
-            return 100 + VALUE_STRENGTH[c.value]  
-        if c.suit == lead_suit:  
-            return 50 + VALUE_STRENGTH[c.value]  
-        return 0  
-    return get_rank(card1) > get_rank(card2)  
+    def compare_cards(self, card1, card2, lead_suit):
+        def get_rank(c):
+            if self.trump and c.suit == self.trump:
+                return 100 + VALUE_STRENGTH[c.value]
+            if c.suit == lead_suit:
+                return 50 + VALUE_STRENGTH[c.value]
+            return 0
+        return get_rank(card1) > get_rank(card2)
 
-def update_scores(self):  
-    for player in self.players:  
-        if player.tricks_taken == player.final_bid:  
-            player.score += 10 + player.final_bid * 2  
-        else:  
-            player.score -= abs(player.tricks_taken - player.final_bid) * 2  
+    def update_scores(self):
+        for player in self.players:
+            if player.tricks_taken == player.final_bid:
+                player.score += 10 + player.final_bid * 2
+            else:
+                player.score -= abs(player.tricks_taken - player.final_bid) * 2
 
-def play(self):  
-    for round_no in range(1, self.total_rounds + 1):  
-        print(f"\n=== ROUND {round_no} ===")  
-        deck = Deck()  
-        deck.shuffle()  
-        hands = deck.deal()  
-        for i, player in enumerate(self.players):  
-            player.hand = hands[i]  
-            player.tricks_taken = 0  
-            player.bid = 0  
-            player.final_bid = 0  
-            player.sort_hand()  
-            player.detect_voids()  
-        self.trick_history.clear()  
-        if self.players[0].is_human:  
-            print("\nYour cards:")  
-            for idx, card in enumerate(self.players[0].hand):  
-                print(f"[{idx}] {card}", end='  ')  
-            print()  
-        bid_winner, max_bid = self.run_bidding()  
-        if bid_winner is not None:  
-            self.trump = self.players[bid_winner].choose_trump()  
-            self.players[bid_winner].bid = max_bid  
-            print(f"{self.players[bid_winner].name} wins bid with {max_bid} and chooses trump {self.trump}")  
-            self.get_final_bids(bid_winner)  
-        else:  
-            self.trump = None  
-            print("All players passed. No trump this round.")  
-        self.collect_tricks(bid_winner if bid_winner is not None else 0)  
-        self.update_scores()  
-        print("\n--- Round Summary ---")  
-        self.show_status()  
-        self.dealer_idx = (self.dealer_idx + 1) % 4  
-    print("\n=== FINAL SCORES ===")  
-    for p in self.players:  
-        print(f"{p.name}: {p.score}")
+    def play(self):
+        for round_no in range(1, self.total_rounds + 1):
+            print(f"\n=== ROUND {round_no} ===")
+            deck = Deck()
+            deck.shuffle()
+            hands = deck.deal()
+            for i, player in enumerate(self.players):
+                player.hand = hands[i]
+                player.tricks_taken = 0
+                player.bid = 0
+                player.final_bid = 0
+                player.sort_hand()
+                player.detect_voids()
+            self.trick_history.clear()
+            if self.players[0].is_human:
+                print("\nYour cards:")
+                for idx, card in enumerate(self.players[0].hand):
+                    print(f"[{idx}] {card}", end='  ')
+                print()
+            bid_winner, max_bid = self.run_bidding()
+            if bid_winner is not None:
+                self.trump = self.players[bid_winner].choose_trump()
+                self.players[bid_winner].bid = max_bid
+                print(f"{self.players[bid_winner].name} wins bid with {max_bid} and chooses trump {self.trump}")
+                self.get_final_bids(bid_winner)
+            else:
+                self.trump = None
+                print("All players passed. No trump this round.")
+            self.collect_tricks(bid_winner if bid_winner is not None else 0)
+            self.update_scores()
+            print("\n--- Round Summary ---")
+            self.show_status()
+            self.dealer_idx = (self.dealer_idx + 1) % 4
+        print("\n=== FINAL SCORES ===")
+        for p in self.players:
+            print(f"{p.name}: {p.score}")
 
-if name == "main":
-game = EstimationGame()
-game.play()
+if __name__ == "__main__":
+    game = EstimationGame()
+    game.play()
 
