@@ -74,16 +74,16 @@ class Player:
             # Estimate tricks from high cards
             for i, card in enumerate(cards):
                 if card.value == 'A':
-                    estimated_tricks += 1
+                    estimated_tricks += 0.9
                 elif card.value == 'K' and len(cards) > 1:
-                    estimated_tricks += 0.75
+                    estimated_tricks += 0.6
                 elif card.value == 'Q' and len(cards) > 2:
-                    estimated_tricks += 0.5
+                    estimated_tricks += 0.3
 
         # Bonuses and Penalties
-        long_suits_bonus = sum(0.5 for s in suit_counts if len(suit_counts[s]) >= 5)
-        void_penalty = len(self.void_suits) * 1.25
-        singleton_penalty = sum(0.5 for s in suit_counts if len(suit_counts[s]) == 1)
+        long_suits_bonus = sum(0.3 for s in suit_counts if len(suit_counts[s]) >= 5)
+        void_penalty = len(self.void_suits) * 1.5
+        singleton_penalty = sum(0.7 for s in suit_counts if len(suit_counts[s]) == 1)
 
         # Trump suit considerations
         if trump:
@@ -91,23 +91,23 @@ class Player:
             # Bonus for holding high trumps
             for card in suit_counts[trump]:
                 if card.value in ['A', 'K', 'Q']:
-                    estimated_tricks += 0.25
+                    estimated_tricks += 0.15
             # Bonus for having a good number of trumps
             if trump_count >= 4:
-                estimated_tricks += trump_count * 0.2
+                estimated_tricks += trump_count * 0.1
 
         # Final estimate calculation
-        estimate = estimated_tricks + (high_card_points / 3.5) + long_suits_bonus - void_penalty - singleton_penalty
+        estimate = estimated_tricks + (high_card_points / 4.0) + long_suits_bonus - void_penalty - singleton_penalty
 
         # Adjust for bidding pressure
-        if bid_pressure > 8:
-            estimate -= 1.5
-        elif bid_pressure > 5:
-            estimate -= 0.5
+        if bid_pressure > 9:
+            estimate -= 2.0
+        elif bid_pressure > 6:
+            estimate -= 1.0
 
         # Ensure bid is within a reasonable range
         final_bid = max(0, round(estimate))
-        return min(final_bid, 13) if final_bid >= 4 else 0
+        return min(final_bid, 13) if final_bid >= 3 else 0
 
     def make_bid(self, current_bids, position, dealer_pos):
         if self.is_human:
