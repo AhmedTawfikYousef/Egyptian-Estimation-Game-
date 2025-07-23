@@ -218,18 +218,31 @@ class EstimationGame:
 
     def run_bidding(self):
         print("\n--- Bidding Phase ---")
-        current_bids = [0] * 4
+        current_bids = {}
         bid_winner = None
         max_bid = 0
+        winning_trump_strength = 0
+
         for i in range(1, 5):
             idx = (self.dealer_idx + i) % 4
             player = self.players[idx]
-            bid = player.make_bid(current_bids, idx, self.dealer_idx)
-            if bid >= 4 and bid > max_bid:
-                max_bid = bid
-                bid_winner = idx
+            bid = player.make_bid(list(current_bids.values()), idx, self.dealer_idx)
+
+            if bid >= 3:
+                trump_choice = player.choose_trump()
+                trump_strength = SUIT_STRENGTH[trump_choice]
+                print(f"{player.name} bids {bid} with trump {trump_choice}")
+
+                # Bid winner judgment
+                if bid > max_bid or (bid == max_bid and trump_strength > winning_trump_strength):
+                    max_bid = bid
+                    bid_winner = idx
+                    winning_trump_strength = trump_strength
+            else:
+                print(f"{player.name} bids {'Pass' if bid == 0 else bid}")
+
             current_bids[idx] = bid
-            print(f"{player.name} bids {'Pass' if bid == 0 else bid}")
+
         return bid_winner, max_bid
 
     def get_final_bids(self, bid_winner_idx):
