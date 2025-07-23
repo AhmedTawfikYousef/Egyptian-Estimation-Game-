@@ -53,7 +53,6 @@ class Player:
             print(f"{self.name} declares to be void in a suit.")
 
     def estimate_bid(self, trump=None, bid_pressure=0):
-        # Adjust strategy if total bid under or over 13 could be passed here in bid_pressure
         suit_counts = {suit: [] for suit in SUITS}
         high_card_points = 0
         estimated_tricks = 0
@@ -71,27 +70,43 @@ class Player:
 
         for suit, cards in suit_counts.items():
             cards.sort(key=lambda c: VALUE_STRENGTH[c.value], reverse=True)
+            # Estimate tricks from high cards
             for i, card in enumerate(cards):
-                if i == 0 and card.value in ['A', 'K']:
+                if card.value == 'A':
                     estimated_tricks += 1
-                elif trump and card.suit == trump and i < 2:
+                elif card.value == 'K' and len(cards) > 1:
+                    estimated_tricks += 0.75
+                elif card.value == 'Q' and len(cards) > 2:
                     estimated_tricks += 0.5
 
-        long_suits_bonus = sum(1 for s in suit_counts if len(suit_counts[s]) >= 5)
-        void_penalty = len(self.void_suits) * 1.5
-        weak_suits_penalty = sum(1 for cards in suit_counts.values() if len(cards) <= 2)
+        # Bonuses and Penalties
+        long_suits_bonus = sum(0.5 for s in suit_counts if len(suit_counts[s]) >= 5)
+        void_penalty = len(self.void_suits) * 1.25
+        singleton_penalty = sum(0.5 for s in suit_counts if len(suit_counts[s]) == 1)
 
-        estimate = estimated_tricks + (high_card_points // 3) + long_suits_bonus - void_penalty - weak_suits_penalty * 0.5
-
+        # Trump suit considerations
         if trump:
             trump_count = len(suit_counts[trump])
-            estimate += 0.3 * trump_count
+            # Bonus for holding high trumps
+            for card in suit_counts[trump]:
+                if card.value in ['A', 'K', 'Q']:
+                    estimated_tricks += 0.25
+            # Bonus for having a good number of trumps
+            if trump_count >= 4:
+                estimated_tricks += trump_count * 0.2
 
-        if bid_pressure >= 7:
-            estimate -= 1
+        # Final estimate calculation
+        estimate = estimated_tricks + (high_card_points / 3.5) + long_suits_bonus - void_penalty - singleton_penalty
 
-        estimate = max(0, round(estimate))
-        return estimate if estimate >= 4 else 0
+        # Adjust for bidding pressure
+        if bid_pressure > 8:
+            estimate -= 1.5
+        elif bid_pressure > 5:
+            estimate -= 0.5
+
+        # Ensure bid is within a reasonable range
+        final_bid = max(0, round(estimate))
+        return min(final_bid, 13) if final_bid >= 4 else 0
 
     def make_bid(self, current_bids, position, dealer_pos):
         if self.is_human:
@@ -113,12 +128,9 @@ class Player:
                 suit_strength[card.suit] += VALUE_STRENGTH[card.value]
         return max(suit_strength, key=suit_strength.get)
 
-    def choose_card(self, lead_suit, trump, trick_number=1, opponents=None):
-        known_voids = {suit: set() for suit in SUITS}
-        for name, card in Player.memory:
-            known_voids[card.suit].add(name)
-
+    def choose_card(self, lead_suit, trump, trick_number=1, opponents=None, trick=[]):
         if self.is_human:
+            # Human player logic remains the same
             print("\nYour current hand:")
             for idx, card in enumerate(self.hand):
                 print(f"[{idx}] {card}", end='  ')
@@ -128,43 +140,70 @@ class Player:
                 valid_indices = list(range(len(self.hand)))
             while True:
                 choice = input(f"Choose a card to play (index {valid_indices}): ").strip()
-                if choice.isdigit():
-                    choice = int(choice)
-                    if choice in valid_indices:
-                        return self.hand.pop(choice)
+                if choice.isdigit() and int(choice) in valid_indices:
+                    return self.hand.pop(int(choice))
         else:
-            needed = self.final_bid - self.tricks_taken
-            valid_cards = [c for c in self.hand if c.suit == lead_suit]
+            # Bot player logic
+            valid_cards = [c for c in self.hand if lead_suit is None or c.suit == lead_suit]
             if not valid_cards:
-                valid_cards = self.hand
+                valid_cards = self.hand  # Can play any card if void in lead suit
 
-            def card_score(card):
-                base = VALUE_STRENGTH[card.value]
-                if trump and card.suit == trump:
-                    base += 100
-                elif lead_suit and card.suit == lead_suit:
-                    base += 50
-                return base
+            # Strategy: Win a trick if possible and needed, otherwise play low.
+            needed = self.final_bid - self.tricks_taken
 
+            # Assess the current trick's highest card
+            highest_card_in_trick = None
+            if trick:
+                highest_card_in_trick = trick[0][1]
+                for _, card in trick:
+                    if self.compare_cards(card, highest_card_in_trick, lead_suit, trump):
+                        highest_card_in_trick = card
+
+            # Card scoring logic
+            def card_score(card, context):
+                score = VALUE_STRENGTH[card.value]
+                if card.suit == trump:
+                    score += 100  # Trump cards are powerful
+
+                # If trying to win, prefer cards that can beat the current highest
+                if context == 'win' and highest_card_in_trick:
+                    if self.compare_cards(card, highest_card_in_trick, lead_suit, trump):
+                        score += 50  # This card can win the trick
+
+                # If not trying to win, prefer lower cards
+                if context == 'lose':
+                    score = -score
+                return score
+
+            # Decide whether to try to win or lose the trick
             if needed > 0:
-                safe_cards = []
-                for c in valid_cards:
-                    risky = any(self.name != p and lead_suit in known_voids and p in known_voids[lead_suit] for p, _ in Player.memory)
-                    if not risky:
-                        safe_cards.append(c)
-                best = max(safe_cards, key=card_score) if safe_cards else max(valid_cards, key=card_score)
+                # Try to win if behind on bid
+                context = 'win'
             else:
-                best = min(valid_cards, key=card_score)
+                # If bid is met or exceeded, try to lose tricks
+                context = 'lose'
 
-            self.hand.remove(best)
-            Player.memory.append((self.name, best))
+            # Select the best card based on the strategy
+            best_card = valid_cards[0]
+            best_score = card_score(best_card, context)
+            for card in valid_cards[1:]:
+                score = card_score(card, context)
+                if score > best_score:
+                    best_score = score
+                    best_card = card
 
-        # Track suits opponents are void in
-        for suit in SUITS:
-            if all(c.suit != suit for _, c in Player.memory if c.suit):
-                pass  # Can be used to lead suit to force trump
+            self.hand.remove(best_card)
+            Player.memory.append((self.name, best_card))
+            return best_card
 
-        return best
+    def compare_cards(self, card1, card2, lead_suit, trump):
+        def get_rank(c):
+            if c.suit == trump:
+                return 100 + VALUE_STRENGTH[c.value]
+            if c.suit == lead_suit:
+                return 50 + VALUE_STRENGTH[c.value]
+            return VALUE_STRENGTH[c.value]
+        return get_rank(card1) > get_rank(card2)
 
 class EstimationGame:
     def __init__(self):
@@ -238,17 +277,10 @@ class EstimationGame:
         opponents = {p.name: p.final_bid for p in self.players if not p.is_human}
         print("--- Round Setup ---")
         print("Final bids:")
-        total_bid = 0
+        total_bid = sum(p.final_bid for p in self.players)
         for p in self.players:
             print(f"{p.name}: Bid = {p.final_bid}")
-            total_bid += p.final_bid
-        print(f"Total tricks bid: {total_bid} (", end='')
-        if total_bid == 13:
-            print("Exactly 13")
-        elif total_bid < 13:
-            print(f"Under by {13 - total_bid}")
-        else:
-            print(f"Over by {total_bid - 13}")
+        print(f"Total tricks bid: {total_bid} ({'Exactly 13' if total_bid == 13 else ('Under by ' + str(13 - total_bid)) if total_bid < 13 else 'Over by ' + str(total_bid - 13)})")
         print(f"Trump suit: {self.trump if self.trump else 'No Trump'}")
         print("\n--- Round Starts ---")
         leader_idx = bid_winner_idx if bid_winner_idx is not None else (self.dealer_idx + 1) % 4
@@ -260,17 +292,17 @@ class EstimationGame:
             for i in range(4):
                 idx = (leader_idx + i) % 4
                 player = self.players[idx]
-                card = player.choose_card(lead_card.suit if lead_card else None, self.trump, trick_no + 1, opponents)
+                card = player.choose_card(lead_card.suit if lead_card else None, self.trump, trick_no + 1, opponents, trick)
                 trick.append((idx, card))
                 print(f"{player.name} plays {card}")
                 if i == 0:
                     lead_card = card
                 time.sleep(1)
-            winner = self.evaluate_trick(trick, lead_card.suit)
-            self.players[winner].tricks_taken += 1
-            self.trick_history.append((trick, winner, leader_idx))
-            print(f"Trick winner:. {self.players[winner].name}")
-            leader_idx = winner
+            winner_idx = self.evaluate_trick(trick, lead_card.suit)
+            self.players[winner_idx].tricks_taken += 1
+            self.trick_history.append((trick, winner_idx, leader_idx))
+            print(f"Trick winner: {self.players[winner_idx].name}")
+            leader_idx = winner_idx
             self.show_status()
 
     def show_status(self):
@@ -282,19 +314,10 @@ class EstimationGame:
         best = None
         winning_player = None
         for idx, card in trick:
-            if not best or self.compare_cards(card, best, lead_suit):
+            if not best or self.players[idx].compare_cards(card, best, lead_suit, self.trump):
                 best = card
                 winning_player = idx
         return winning_player
-
-    def compare_cards(self, card1, card2, lead_suit):
-        def get_rank(c):
-            if self.trump and c.suit == self.trump:
-                return 100 + VALUE_STRENGTH[c.value]
-            if c.suit == lead_suit:
-                return 50 + VALUE_STRENGTH[c.value]
-            return 0
-        return get_rank(card1) > get_rank(card2)
 
     def update_scores(self):
         for player in self.players:
