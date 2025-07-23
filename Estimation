@@ -316,7 +316,7 @@ class EstimationGame:
         print("Final bids:")
         total_bid = sum(p.final_bid for p in self.players)
         for p in self.players:
-            print(f"{p.name}: Bid = {p.final_bid}")
+            print(f"{p.name}: Bid = {p.final_bid}{' (with risk)' if p.with_risk else ''}{' (risky bid)' if p.risky_bid else ''}")
         print(f"Total tricks bid: {total_bid} ({'Exactly 13' if total_bid == 13 else ('Under by ' + str(13 - total_bid)) if total_bid < 13 else 'Over by ' + str(total_bid - 13)})")
         print(f"Trump suit: {self.trump if self.trump else 'No Trump'}")
         print("\n--- Round Starts ---")
