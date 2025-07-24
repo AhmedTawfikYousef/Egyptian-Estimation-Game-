@@ -363,11 +363,11 @@ class EstimationGame:
                 if player.with_risk:
                     player.score += 10
                 if player.risky_bid:
-                    player.score += 20
+                    player.score += 10
             else:
                 player.score -= abs(player.tricks_taken - player.final_bid) * 2
                 if player.risky_bid:
-                    player.score -= 20
+                    player.score -= 10
 
     def play(self):
         for round_no in range(1, self.total_rounds + 1):
