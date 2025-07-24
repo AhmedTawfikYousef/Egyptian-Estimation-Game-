@@ -125,11 +125,19 @@ class Player:
             return self.estimate_bid()
 
     def choose_trump(self):
-        suit_strength = {s: 0 for s in SUITS}
-        for card in self.hand:
-            if card.value in ['A', 'K', 'Q']:
-                suit_strength[card.suit] += VALUE_STRENGTH[card.value]
-        return max(suit_strength, key=suit_strength.get)
+        if self.is_human:
+            while True:
+                trump_input = input("Choose trump suit (C, D, H, S): ").upper()
+                if trump_input in ['C', 'D', 'H', 'S']:
+                    return {'C': '\u2663', 'D': '\u2666', 'H': '\u2665', 'S': '\u2660'}[trump_input]
+                else:
+                    print("Invalid input. Please enter C, D, H, or S.")
+        else:
+            suit_strength = {s: 0 for s in SUITS}
+            for card in self.hand:
+                if card.value in ['A', 'K', 'Q']:
+                    suit_strength[card.suit] += VALUE_STRENGTH[card.value]
+            return max(suit_strength, key=suit_strength.get)
 
     def choose_card(self, lead_suit, trump, trick_number=1, opponents=None, trick=[], trick_history=[]):
         if self.is_human:
