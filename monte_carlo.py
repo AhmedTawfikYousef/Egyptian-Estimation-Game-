@@ -140,12 +140,12 @@ def main():
         capital, risk_per_trade, stop_loss, S0
     )
 
-    print("\n📊 Monte Carlo Simulation Results:")
-    print(f"Stop-Loss Hit Probability: {stop_prob:.2%}")
-    print(f"Take-Profit Hit Probability: {target_prob:.2%}")
-    print(f"Expected Profit per Share: ${expected_return:.2f}")
-    print(f"Suggested Position Size: {position_size:.2f} shares")
-    print(f"Estimated Expected Profit: ${expected_return * position_size:.2f}")
+    print("\n📊 Monte Carlo Simulation Results:", flush=True)
+    print(f"Stop-Loss Hit Probability: {stop_prob:.2%}", flush=True)
+    print(f"Take-Profit Hit Probability: {target_prob:.2%}", flush=True)
+    print(f"Expected Profit per Share: ${expected_return:.2f}", flush=True)
+    print(f"Suggested Position Size: {position_size:.2f} shares", flush=True)
+    print(f"Estimated Expected Profit: ${expected_return * position_size:.2f}", flush=True)
 
     plot_simulation(paths, stop_loss, take_profit)
 
